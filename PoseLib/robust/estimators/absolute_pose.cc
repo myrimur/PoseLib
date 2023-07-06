@@ -35,6 +35,7 @@
 #include "PoseLib/solvers/p3ll.h"
 #include "PoseLib/solvers/p3p.h"
 #include "PoseLib/solvers/p5lp_radial.h"
+#include "PoseLib/solvers/up2p.h"
 
 namespace poselib {
 
@@ -52,6 +53,82 @@ double AbsolutePoseEstimator::score_model(const CameraPose &pose, size_t *inlier
 }
 
 void AbsolutePoseEstimator::refine_model(CameraPose *pose) const {
+    BundleOptions bundle_opt;
+    bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+    bundle_opt.loss_scale = opt.max_reproj_error;
+    bundle_opt.max_iterations = 25;
+
+    // TODO: for high outlier scenarios, make a copy of (x,X) and find points close to inlier threshold
+    // TODO: experiment with good thresholds for copy vs iterating full point set
+    bundle_adjust(x, X, pose, bundle_opt);
+}
+
+void AbsolutePoseUprightEstimator::generate_models(std::vector<CameraPose> *models) {
+    up2p_sampler.generate_sample(&sample);
+    for (size_t k = 0; k < up2p_sample_sz; ++k) {
+        xs[k] = x[sample[k]].homogeneous().normalized();
+        Xs[k] = X[sample[k]];
+    }
+    up2p(xs, Xs, models);
+}
+
+double AbsolutePoseUprightEstimator::score_model(const CameraPose &pose, size_t *inlier_count) {
+    std::vector<char> inliers_mask;
+    get_inliers(pose, x, X, opt.max_reproj_error * opt.max_reproj_error, &inliers_mask);
+
+    // TODO: rewrite using transform or ranges
+    x_inliers.clear();
+    X_inliers.clear();
+    for (size_t i = 0; i < inliers_mask.size(); ++i) {
+        if (inliers_mask[i]) {
+            x_inliers.push_back(x[i]);
+            X_inliers.push_back(X[i]);
+        }
+    }
+    *inlier_count = x_inliers.size();
+
+    size_t tmp;
+    return compute_msac_score(pose, x, X, opt.max_reproj_error * opt.max_reproj_error, &tmp);
+}
+
+void AbsolutePoseUprightEstimator::refine_model(CameraPose *pose) {
+    std::vector<CameraPose> models;
+    for (auto i = 0; i < 10; ++i) {
+        models.clear();
+
+        p3p_sampler.generate_sample(&sample);
+        for (size_t k = 0; k < up2p_sample_sz; ++k) {
+            xs[k] = x[sample[k]].homogeneous().normalized();
+            Xs[k] = X[sample[k]];
+        }
+        p3p(xs, Xs, &models);
+
+        // Find best model among candidates
+        int best_model_ind = -1;
+        for (size_t i = 0; i < models.size(); ++i) {
+            double score_msac = estimator.score_model(models[i], &inlier_count);
+            bool more_inliers = inlier_count > best_minimal_inlier_count;
+            bool better_score = score_msac < best_minimal_msac_score;
+
+            if (more_inliers || better_score) {
+                if (more_inliers) {
+                    best_minimal_inlier_count = inlier_count;
+                }
+                if (better_score) {
+                    best_minimal_msac_score = score_msac;
+                }
+                best_model_ind = i;
+
+                // check if we should update best model already
+                if (score_msac < stats.model_score) {
+                    stats.model_score = score_msac;
+                    *best_model = models[i];
+                    stats.num_inliers = inlier_count;
+                }
+            }
+        }
+    }
+
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
     bundle_opt.loss_scale = opt.max_reproj_error;
