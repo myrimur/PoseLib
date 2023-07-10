@@ -65,7 +65,7 @@ void AbsolutePoseEstimator::refine_model(CameraPose *pose) const {
 
 void AbsolutePoseUprightEstimator::generate_models(std::vector<CameraPose> *models) {
     up2p_sampler.generate_sample(&sample);
-    for (size_t k = 0; k < up2p_sample_sz; ++k) {
+    for (size_t k = 0; k < sample_sz; ++k) {
         xs[k] = x[sample[k]].homogeneous().normalized();
         Xs[k] = X[sample[k]];
     }
@@ -92,21 +92,29 @@ double AbsolutePoseUprightEstimator::score_model(const CameraPose &pose, size_t 
 }
 
 void AbsolutePoseUprightEstimator::refine_model(CameraPose *pose) {
+    RandomSampler p3p_sampler(x_inliers.size(), p3p_sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations);
     std::vector<CameraPose> models;
-    for (auto i = 0; i < 10; ++i) {
+    CameraPose best_model;
+    size_t stats_num_inliers = 0;
+    double stats_model_score = std::numeric_limits<double>::max();
+
+    for (auto n = 0; n < 10; ++n) {
         models.clear();
 
         p3p_sampler.generate_sample(&sample);
-        for (size_t k = 0; k < up2p_sample_sz; ++k) {
-            xs[k] = x[sample[k]].homogeneous().normalized();
-            Xs[k] = X[sample[k]];
+        for (size_t k = 0; k < sample_sz; ++k) {
+            xs[k] = x_inliers[sample[k]].homogeneous().normalized();
+            Xs[k] = X_inliers[sample[k]];
         }
+        models.clear();
         p3p(xs, Xs, &models);
 
         // Find best model among candidates
-        int best_model_ind = -1;
+        size_t inlier_count = 0;
+        size_t best_minimal_inlier_count = 0;
+        double best_minimal_msac_score = std::numeric_limits<double>::max();
         for (size_t i = 0; i < models.size(); ++i) {
-            double score_msac = estimator.score_model(models[i], &inlier_count);
+            double score_msac = score_model(models[i], &inlier_count);
             bool more_inliers = inlier_count > best_minimal_inlier_count;
             bool better_score = score_msac < best_minimal_msac_score;
 
@@ -117,17 +125,23 @@ void AbsolutePoseUprightEstimator::refine_model(CameraPose *pose) {
                 if (better_score) {
                     best_minimal_msac_score = score_msac;
                 }
-                best_model_ind = i;
 
                 // check if we should update best model already
-                if (score_msac < stats.model_score) {
-                    stats.model_score = score_msac;
-                    *best_model = models[i];
-                    stats.num_inliers = inlier_count;
+                if (score_msac < stats_model_score) {
+                    stats_model_score = score_msac;
+                    best_model = models[i];
+                    stats_num_inliers = inlier_count;
                 }
             }
         }
     }
+
+    // Outlier sample or wrong gravity prior
+    if (stats_num_inliers < 1.2 * x_inliers.size()) {
+        return;
+    }
+
+    *pose = best_model;
 
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;

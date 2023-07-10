@@ -71,8 +71,7 @@ class AbsolutePoseUprightEstimator {
     AbsolutePoseUprightEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D,
                                  const std::vector<Point3D> &points3D)
         : num_data(points2D.size()), opt(ransac_opt), x(points2D), X(points3D),
-          up2p_sampler(num_data, up2p_sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations),
-          p3p_sampler(num_data, p3p_sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations){
+          up2p_sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
         xs.resize(p3p_sample_sz);
         Xs.resize(p3p_sample_sz);
         sample.resize(p3p_sample_sz);
@@ -82,7 +81,7 @@ class AbsolutePoseUprightEstimator {
     double score_model(const CameraPose &pose, size_t *inlier_count);
     void refine_model(CameraPose *pose);
 
-    const size_t up2p_sample_sz = 2;
+    const size_t sample_sz = 2;
     const size_t p3p_sample_sz = 3;
     const size_t num_data;
 
@@ -92,7 +91,6 @@ class AbsolutePoseUprightEstimator {
     const std::vector<Point3D> &X;
 
     RandomSampler up2p_sampler;
-    RandomSampler p3p_sampler;
     // pre-allocated vectors for sampling
     std::vector<Point3D> xs, Xs;
     std::vector<size_t> sample;
