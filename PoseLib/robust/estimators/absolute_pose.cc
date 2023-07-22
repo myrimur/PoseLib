@@ -92,6 +92,9 @@ double AbsolutePoseUprightEstimator::score_model(const CameraPose &pose, size_t 
 }
 
 void AbsolutePoseUprightEstimator::refine_model(CameraPose *pose) {
+    if (x_inliers.size() < 4) {
+        return;
+    }
     RandomSampler p3p_sampler(x_inliers.size(), p3p_sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations);
     std::vector<CameraPose> models;
     CameraPose best_model;
