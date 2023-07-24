@@ -66,9 +66,9 @@ class AbsolutePoseEstimator {
     std::vector<char> inliers;
 };
 
-class AbsolutePoseUprightEstimator {
+class AbsolutePoseCorrectingUprightEstimator {
   public:
-    AbsolutePoseUprightEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D,
+    AbsolutePoseCorrectingUprightEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D,
                                  const std::vector<Point3D> &points3D)
         : num_data(points2D.size()), opt(ransac_opt), x(points2D), X(points3D),
           up2p_sampler(num_data, sample_sz, opt.seed, opt.progressive_sampling, opt.max_prosac_iterations) {
@@ -78,7 +78,7 @@ class AbsolutePoseUprightEstimator {
     }
 
     void generate_models(std::vector<CameraPose> *models);
-    double score_model(const CameraPose &pose, size_t *inlier_count);
+    double score_model(const CameraPose &pose, size_t *inlier_count) const;
     void refine_model(CameraPose *pose);
 
     const size_t sample_sz = 2;
@@ -94,8 +94,9 @@ class AbsolutePoseUprightEstimator {
     // pre-allocated vectors for sampling
     std::vector<Point3D> xs, Xs;
     std::vector<size_t> sample;
-    std::vector<Point2D> x_inliers;
-    std::vector<Point3D> X_inliers;
+
+    // Gravity prior
+    Eigen::Quaterniond world_to_camera_tilt = Eigen::Quaterniond::Identity();
 };
 
 class GeneralizedAbsolutePoseEstimator {
