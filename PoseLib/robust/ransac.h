@@ -41,6 +41,9 @@ RansacStats ransac_pnp(const std::vector<Point2D> &x, const std::vector<Point3D>
                        CameraPose *best_model, std::vector<char> *best_inliers);
 
 RansacStats ransac_upright(const std::vector<Point2D> &x, const std::vector<Point3D> &X, const RansacOptions &opt,
+                                      CameraPose *best_model, std::vector<char> *best_inliers);
+
+RansacStats ransac_correcting_upright(const std::vector<Point2D> &x, const std::vector<Point3D> &X, const RansacOptions &opt,
                            CameraPose *best_model, std::vector<char> *best_inliers);
 
 RansacStats ransac_gen_pnp(const std::vector<std::vector<Point2D>> &x, const std::vector<std::vector<Point3D>> &X,

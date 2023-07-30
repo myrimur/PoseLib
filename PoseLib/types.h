@@ -47,6 +47,9 @@ struct RansacOptions {
     // If we should use PROSAC sampling. Assumes data is sorted
     bool progressive_sampling = false;
     size_t max_prosac_iterations = 100000;
+    // Parameters for correcting upright estimator
+    double max_grav_error = 0.7;  // in range [0, 1]
+    double max_p3p_inlier_increase = 1.2;
 };
 
 struct RansacStats {
