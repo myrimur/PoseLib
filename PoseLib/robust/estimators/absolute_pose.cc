@@ -152,8 +152,11 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
         std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond>> gravities(10);
         CameraPose best_model;
         double stats_model_score = std::numeric_limits<double>::max();
+        size_t best_minimal_inlier_count = 0;
+        double best_minimal_msac_score = std::numeric_limits<double>::max();
+        size_t inlier_count = 0;
 
-        for (auto n = 0; n < 1000; ++n) {
+        for (size_t n = 0; n < opt.grav_detection_iterations; ++n) {
             p3p_sampler.generate_sample(&sample);
             for (size_t k = 0; k < sample_sz; ++k) {
                 xs[k] = x[sample[k]].homogeneous().normalized();
@@ -162,14 +165,45 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
             p3p(xs, Xs, &models);
 
             // Find best model among candidates
-            size_t inlier_count = 0;
+            int best_model_ind = -1;
             for (size_t i = 0; i < models.size(); ++i) {
                 double score_msac = score_model(models[i], &inlier_count);
-                // check if we should update best model already
-                if (score_msac < stats_model_score) {
-                    stats_model_score = score_msac;
-                    best_model = models[i];
+                bool more_inliers = inlier_count > best_minimal_inlier_count;
+                bool better_score = score_msac < best_minimal_msac_score;
+
+                if (more_inliers || better_score) {
+                    if (more_inliers) {
+                        best_minimal_inlier_count = inlier_count;
+                    }
+                    if (better_score) {
+                        best_minimal_msac_score = score_msac;
+                    }
+                    best_model_ind = i;
+
+                    // check if we should update best model already
+                    if (score_msac < stats_model_score) {
+                        stats_model_score = score_msac;
+                        best_model = models[i];
+//                        std::cout << "usual: " << best_model.q.transpose() << std::endl;
+                    }
                 }
+            }
+
+            if (best_model_ind == -1)
+                continue;
+
+            // Refinement
+            CameraPose refined_model = models[best_model_ind];
+            BundleOptions bundle_opt;
+            bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+            bundle_opt.loss_scale = opt.max_reproj_error;
+            bundle_opt.max_iterations = 25;
+            bundle_adjust(x, X, &refined_model, bundle_opt);
+            double refined_msac_score = score_model(refined_model, &inlier_count);
+            if (refined_msac_score < stats_model_score) {
+                stats_model_score = refined_msac_score;
+                best_model = refined_model;
+//                std::cout << "refined: " << best_model.q.transpose() << std::endl;
             }
         }
 //        *pose = best_model;
