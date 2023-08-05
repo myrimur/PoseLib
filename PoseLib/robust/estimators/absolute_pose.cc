@@ -209,7 +209,7 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
 //        *pose = best_model;
         world_to_camera_tilt = extract_zx_rotations(
             Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3]));
-        std::cerr << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
+//        std::cerr << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
         return;
     }
 
@@ -264,12 +264,25 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
             continue;
         }
 
-        CameraPose best_curr_model { models[best_model_ind] };
-        BundleOptions bundle_opt;
-        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-        bundle_opt.loss_scale = opt.max_reproj_error;
-        bundle_opt.max_iterations = 25;
-        bundle_adjust(x, X, &best_curr_model, bundle_opt);
+//        CameraPose best_curr_model { models[best_model_ind] };
+//        BundleOptions bundle_opt;
+//        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+//        bundle_opt.loss_scale = opt.max_reproj_error;
+//        bundle_opt.max_iterations = 25;
+//        bundle_adjust(x, X, &best_curr_model, bundle_opt);
+        CameraPose best_curr_model = models[best_model_ind];
+//        CameraPose refined_model = best_curr_model;
+//        BundleOptions bundle_opt;
+//        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+//        bundle_opt.loss_scale = opt.max_reproj_error;
+//        bundle_opt.max_iterations = 25;
+//        bundle_adjust(x, X, &refined_model, bundle_opt);
+//        double refined_msac_score = score_model(refined_model, &inlier_count);
+//        if (refined_msac_score < stats_model_score) {
+//            stats_model_score = refined_msac_score;
+//            best_curr_model = refined_model;
+//        }
+
         gravities.push_back(extract_zx_rotations(
             Eigen::Quaterniond(best_curr_model.q[0], best_curr_model.q[1], best_curr_model.q[2], best_curr_model.q[3])));
     }
@@ -316,9 +329,21 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
 //        std::cout << variance << std::endl;
 //        world_to_camera_tilt = avg.inverse();  // TODO: rewrite without inverse, because it is wrong considering name of the variable
 //        world_to_camera_tilt = avg;  // TODO: maybe take not avg but best_model
+        CameraPose refined_model = best_model;
+        BundleOptions bundle_opt;
+        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+        bundle_opt.loss_scale = opt.max_reproj_error;
+        bundle_opt.max_iterations = 25;
+        bundle_adjust(x, X, &refined_model, bundle_opt);
+        size_t inlier_count = 0;
+        double refined_msac_score = score_model(refined_model, &inlier_count);
+        if (refined_msac_score < stats_model_score) {
+            stats_model_score = refined_msac_score;
+            best_model = refined_model;
+        }
         world_to_camera_tilt = extract_zx_rotations(
             Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3]));
-        std::cout << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
+//        std::cout << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
         return;
     }
 //    std::cout << "Correct world_to_camera_tilt prior" << std::endl;
