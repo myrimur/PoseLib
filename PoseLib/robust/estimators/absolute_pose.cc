@@ -37,8 +37,6 @@
 #include "PoseLib/solvers/p5lp_radial.h"
 #include "PoseLib/solvers/up2p.h"
 
-#include <iostream>  // TODO: remove
-
 namespace poselib {
 
 void AbsolutePoseEstimator::generate_models(std::vector<CameraPose> *models) {
@@ -97,20 +95,15 @@ void AbsolutePoseCorrectingUprightEstimator::generate_models(std::vector<CameraP
     }
     // Align camera rays to gravity
     for (auto &vec : xs) {
-//        std::cout << "before" << vec.transpose() << std::endl;
         vec = world_to_camera_tilt.inverse() * vec;
-//        std::cout << "after" << vec.transpose() << std::endl;
     }
     up2p(xs, Xs, models);
     // Rotate back to original camera orientation
     for (auto &pose : *models) {
-//        std::cout << "before: " << pose.q.transpose() << std::endl;
-//        std::cout << '[' << pose.q.transpose() << "] * [" << world_to_camera_tilt << "] = [";
-        Eigen::Vector4d tilted_pose = (world_to_camera_tilt * Eigen::Quaterniond(pose.q[0], pose.q[1], pose.q[2], pose.q[3])).coeffs();
-//        pose.q = Eigen::Vector4d(tilted_pose.w(), tilted_pose.x(), tilted_pose.y(), tilted_pose.z());
-        pose.q = Eigen::Vector4d(tilted_pose[3], tilted_pose[0], tilted_pose[1], tilted_pose[2]);  // with real part first, i.e. QW, QX, QY, QZ
-//        std::cout << pose.q.transpose() << ']' << std::endl;
-//        std::cout << "after: " << pose.q.transpose() << std::endl;
+        Eigen::Vector4d tilted_pose =
+            (world_to_camera_tilt * Eigen::Quaterniond(pose.q[0], pose.q[1], pose.q[2], pose.q[3])).coeffs();
+        pose.q = Eigen::Vector4d(tilted_pose[3], tilted_pose[0], tilted_pose[1],
+                                 tilted_pose[2]); // with real part first, i.e. QW, QX, QY, QZ
     }
 }
 
@@ -120,7 +113,8 @@ double AbsolutePoseCorrectingUprightEstimator::score_model(const CameraPose &pos
 
 // TODO: maybe move to quaternion.h
 [[nodiscard]] static Eigen::Quaterniond extract_zx_rotations(const Eigen::Quaterniond &quaternion) {
-    Eigen::Vector3d angles = quaternion.normalized().toRotationMatrix().eulerAngles(2, 0, 1);  // ZXY, because we have to extract y first
+    Eigen::Vector3d angles =
+        quaternion.normalized().toRotationMatrix().eulerAngles(2, 0, 1); // ZXY, because we have to extract y first
     double z = angles[0];
     double x = angles[1];
     Eigen::Quaterniond roll_pitch_quaternion =
@@ -141,11 +135,8 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
             X_inliers.push_back(X[i]);
         }
     }
-//    std::cout << "refining model with " << x_inliers.size() << " inliers" << std::endl;
 
     if (x_inliers.size() < 3) {
-//        std::cout << "too few inliers for refinement" << std::endl;
-        // TODO: run p3p on all points to get a better world_to_camera_tilt prior
         RandomSampler p3p_sampler(x.size(), p3p_sample_sz, opt.seed, opt.progressive_sampling,
                                   opt.max_prosac_iterations);
         std::vector<CameraPose> models;  // TODO: probably needs aligned allocator
@@ -184,7 +175,7 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
                     if (score_msac < stats_model_score) {
                         stats_model_score = score_msac;
                         best_model = models[i];
-//                        std::cout << "usual: " << best_model.q.transpose() << std::endl;
+                        //                        std::cout << "usual: " << best_model.q.transpose() << std::endl;
                     }
                 }
             }
@@ -203,13 +194,13 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
             if (refined_msac_score < stats_model_score) {
                 stats_model_score = refined_msac_score;
                 best_model = refined_model;
-//                std::cout << "refined: " << best_model.q.transpose() << std::endl;
+                //                std::cout << "refined: " << best_model.q.transpose() << std::endl;
             }
         }
-//        *pose = best_model;
+        //        *pose = best_model;
         world_to_camera_tilt = extract_zx_rotations(
             Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3]));
-//        std::cerr << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
+        //        std::cerr << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
         return;
     }
 
@@ -235,7 +226,6 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
         double best_minimal_msac_score = std::numeric_limits<double>::max();
 
         int best_model_ind = -1;
-        (void)best_model_ind;  // TODO: remove this line (silence warning)
         for (size_t i = 0; i < models.size(); ++i) {
             double score_msac = score_model(models[i], &inlier_count);
             bool more_inliers = inlier_count > best_minimal_inlier_count;
@@ -259,95 +249,52 @@ void AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
             }
         }
 
-//        assert(best_model_ind != -1);  // TODO: remove
         if (best_model_ind == -1) {
             continue;
         }
-
-//        CameraPose best_curr_model { models[best_model_ind] };
-//        BundleOptions bundle_opt;
-//        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-//        bundle_opt.loss_scale = opt.max_reproj_error;
-//        bundle_opt.max_iterations = 25;
-//        bundle_adjust(x, X, &best_curr_model, bundle_opt);
         CameraPose best_curr_model = models[best_model_ind];
-//        CameraPose refined_model = best_curr_model;
-//        BundleOptions bundle_opt;
-//        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-//        bundle_opt.loss_scale = opt.max_reproj_error;
-//        bundle_opt.max_iterations = 25;
-//        bundle_adjust(x, X, &refined_model, bundle_opt);
-//        double refined_msac_score = score_model(refined_model, &inlier_count);
-//        if (refined_msac_score < stats_model_score) {
-//            stats_model_score = refined_msac_score;
-//            best_curr_model = refined_model;
-//        }
-
-        gravities.push_back(extract_zx_rotations(
-            Eigen::Quaterniond(best_curr_model.q[0], best_curr_model.q[1], best_curr_model.q[2], best_curr_model.q[3])));
+        gravities.push_back(extract_zx_rotations(Eigen::Quaterniond(best_curr_model.q[0], best_curr_model.q[1],
+                                                                    best_curr_model.q[2], best_curr_model.q[3])));
     }
 
     if (gravities.empty()) {
-//        std::cout << "No gravity vectors found" << std::endl;
         return;
     }
-//    std::cout << "gravities.size() = " << gravities.size() << std::endl;
 
-    // TODO: maybe check all 3-angle direction but not only world_to_camera_tilt
+    Eigen::Quaterniond best_grav =
+        extract_zx_rotations(Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3]));
 
-//    Eigen::Quaterniond avg(0, 0, 0, 0);
-//    for (auto &grav : gravities) {
-//        avg.coeffs() += grav.coeffs();
-//    }
-//    avg.coeffs().normalize();  // TODO: or just normalize()?
-
-    Eigen::Quaterniond avg { extract_zx_rotations(
-        Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3])) };
-
-    double variance = 0;  // TODO: rename
+    double error = 0;
     for (auto &grav : gravities) {
-        //            variance += (grav.coeffs() - avg.coeffs()).squaredNorm()
-        variance += grav.dot(avg); // TODO: squared?
-//        std::cout << "after dot: " << variance << std::endl;
+        error += grav.dot(best_grav);
     }
-    variance /= gravities.size();
-//    std::cout << "after div: " << variance << "size: " << gravities.size() << std::endl;
-
-//    std::cout << variance << std::endl;  // TODO: nan???
-
+    error /= gravities.size();
 
     // Outlier sample or wrong world_to_camera_tilt prior
-    if (variance < opt.max_grav_error) {
+    if (error < opt.max_grav_error) {
         // Outlier sample
         if (stats_num_inliers < opt.max_p3p_inlier_increase * x_inliers.size()) {
-//            std::cout << "Outlier sample" << std::endl;
             return;
         }
 
         // Wrong world_to_camera_tilt prior, update it
-//        std::cout << "Wrong world_to_camera_tilt prior" << std::endl;
-//        std::cout << variance << std::endl;
-//        world_to_camera_tilt = avg.inverse();  // TODO: rewrite without inverse, because it is wrong considering name of the variable
-//        world_to_camera_tilt = avg;  // TODO: maybe take not avg but best_model
-        CameraPose refined_model = best_model;
-        BundleOptions bundle_opt;
-        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
-        bundle_opt.loss_scale = opt.max_reproj_error;
-        bundle_opt.max_iterations = 25;
-        bundle_adjust(x, X, &refined_model, bundle_opt);
-        size_t inlier_count = 0;
-        double refined_msac_score = score_model(refined_model, &inlier_count);
-        if (refined_msac_score < stats_model_score) {
-            stats_model_score = refined_msac_score;
-            best_model = refined_model;
-        }
+        // TODO: maybe refine the best prior
+        //        CameraPose refined_model = best_model;
+        //        BundleOptions bundle_opt;
+        //        bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+        //        bundle_opt.loss_scale = opt.max_reproj_error;
+        //        bundle_opt.max_iterations = 25;
+        //        bundle_adjust(x, X, &refined_model, bundle_opt);
+        //        size_t inlier_count = 0;
+        //        double refined_msac_score = score_model(refined_model, &inlier_count);
+        //        if (refined_msac_score < stats_model_score) {
+        //            stats_model_score = refined_msac_score;
+        //            best_model = refined_model;
+        //        }
         world_to_camera_tilt = extract_zx_rotations(
             Eigen::Quaterniond(best_model.q[0], best_model.q[1], best_model.q[2], best_model.q[3]));
-//        std::cout << (world_to_camera_tilt * Point3D(0, 1, 0)).transpose() << std::endl;
         return;
     }
-//    std::cout << "Correct world_to_camera_tilt prior" << std::endl;
-//    *pose = best_model;
 
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
