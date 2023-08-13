@@ -124,6 +124,7 @@ RansacStats estimate_absolute_pose_correcting_upright(const std::vector<Point2D>
 
     RansacOptions ransac_opt_scaled = ransac_opt;
     ransac_opt_scaled.max_reproj_error /= camera.focal();
+    ransac_opt_scaled.max_inner_error /= camera.focal();
 
     RansacStats stats = ransac_correcting_upright(points2D_calib, points3D, ransac_opt_scaled, pose, inliers);
 

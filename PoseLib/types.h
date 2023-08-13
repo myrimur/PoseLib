@@ -50,7 +50,8 @@ struct RansacOptions {
     // Parameters for correcting upright estimator
     double max_grav_error = 0.7;  // in range [0, 1]
     double max_p3p_inlier_increase = 1.2;
-    size_t grav_detection_iterations = 1000;
+    size_t inner_iterations = 1000;
+    double max_inner_error = 32.0;
 };
 
 struct RansacStats {

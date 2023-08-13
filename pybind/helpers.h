@@ -40,7 +40,8 @@ void update_ransac_options(const py::dict &input, RansacOptions &ransac_opt) {
     update(input, "max_prosac_iterations", ransac_opt.max_prosac_iterations);
     update(input, "max_grav_error", ransac_opt.max_grav_error);
     update(input, "max_p3p_inlier_increase", ransac_opt.max_p3p_inlier_increase);
-    update(input, "grav_detection_iterations", ransac_opt.grav_detection_iterations);
+    update(input, "inner_iterations", ransac_opt.inner_iterations);
+    update(input, "max_inner_error", ransac_opt.max_inner_error);
 }
 
 void update_bundle_options(const py::dict &input, BundleOptions &bundle_opt) {
@@ -82,7 +83,8 @@ void write_to_dict(const RansacOptions &ransac_opt, py::dict &dict) {
     dict["max_prosac_iterations"] = ransac_opt.max_prosac_iterations;
     dict["max_grav_error"] = ransac_opt.max_grav_error;
     dict["max_p3p_inlier_increase"] = ransac_opt.max_p3p_inlier_increase;
-    dict["grav_detection_iterations"] = ransac_opt.grav_detection_iterations;
+    dict["inner_iterations"] = ransac_opt.inner_iterations;
+    dict["max_inner_error"] = ransac_opt.max_inner_error;
 }
 
 void write_to_dict(const BundleOptions &bundle_opt, py::dict &dict) {

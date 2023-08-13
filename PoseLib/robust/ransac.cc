@@ -75,7 +75,7 @@ RansacStats ransac_correcting_upright(const std::vector<Point2D> &x, const std::
     AbsolutePoseCorrectingUprightEstimator estimator(opt, x, X);
     RansacStats stats = ransac<AbsolutePoseCorrectingUprightEstimator>(estimator, opt, best_model);
 
-    get_inliers(*best_model, x, X, opt.max_reproj_error * opt.max_reproj_error, best_inliers);
+    get_inliers(*best_model, x, X, opt.max_inner_error * opt.max_inner_error, best_inliers);
 
     return stats;
 }

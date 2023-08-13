@@ -30,6 +30,7 @@
 #define POSELIB_RANSAC_IMPL_H_
 
 #include "PoseLib/types.h"
+#include "PoseLib/robust/estimators/absolute_pose.h"
 
 #include <vector>
 
@@ -118,12 +119,24 @@ RansacStats ransac(Solver &estimator, const RansacOptions &opt, Model *best_mode
 
     // Final refinement
     Model refined_model = *best_model;
-    estimator.refine_model(&refined_model);
-    stats.refinements++;
-    double refined_msac_score = estimator.score_model(refined_model, &inlier_count);
-    if (refined_msac_score < stats.model_score) {
-        *best_model = refined_model;
-        stats.num_inliers = inlier_count;
+    if constexpr (std::is_same_v<Solver, AbsolutePoseCorrectingUprightEstimator>) {
+        auto was_refined = estimator.refine_model(&refined_model);
+        if (was_refined) {
+            stats.refinements++;
+            double refined_msac_score = estimator.score_model(refined_model, &inlier_count);
+            if (refined_msac_score < stats.model_score) {
+                *best_model = refined_model;
+                stats.num_inliers = inlier_count;
+            }
+        }
+    } else {
+        estimator.refine_model(&refined_model);
+        stats.refinements++;
+        double refined_msac_score = estimator.score_model(refined_model, &inlier_count);
+        if (refined_msac_score < stats.model_score) {
+            *best_model = refined_model;
+            stats.num_inliers = inlier_count;
+        }
     }
 
     return stats;

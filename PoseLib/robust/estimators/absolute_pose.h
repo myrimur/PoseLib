@@ -35,6 +35,7 @@
 #include "PoseLib/types.h"
 
 #include <fstream>  // TODO: remove
+#include <iostream>  // TODO: remove
 
 namespace poselib {
 
@@ -109,9 +110,13 @@ class AbsolutePoseCorrectingUprightEstimator {
         sample.resize(p3p_sample_sz);
     }
 
+//    ~AbsolutePoseCorrectingUprightEstimator() {
+//        std::cerr << num_outlier_samples << std::endl;
+//    }
+
     void generate_models(std::vector<CameraPose> *models);
     double score_model(const CameraPose &pose, size_t *inlier_count) const;
-    void refine_model(CameraPose *pose);
+    bool refine_model(CameraPose *pose);
 
     const size_t sample_sz = 2;
     const size_t p3p_sample_sz = 3;
@@ -129,6 +134,8 @@ class AbsolutePoseCorrectingUprightEstimator {
 
     // Gravity prior
     Eigen::Quaterniond world_to_camera_tilt = Eigen::Quaterniond::Identity();
+
+//    size_t num_outlier_samples = 0; // TODO: remove
 };
 
 class GeneralizedAbsolutePoseEstimator {
