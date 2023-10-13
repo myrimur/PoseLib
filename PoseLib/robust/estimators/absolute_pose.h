@@ -39,6 +39,8 @@
 
 namespace poselib {
 
+[[nodiscard]] Eigen::Quaterniond extract_zx_rotations(const Eigen::Quaterniond &quaternion);
+
 class AbsolutePoseEstimator {
   public:
     AbsolutePoseEstimator(const RansacOptions &ransac_opt, const std::vector<Point2D> &points2D,
@@ -122,7 +124,6 @@ class AbsolutePoseCorrectingUprightEstimator {
     const size_t p3p_sample_sz = 3;
     const size_t num_data;
 
-  private:
     const RansacOptions &opt;
     const std::vector<Point2D> &x;
     const std::vector<Point3D> &X;

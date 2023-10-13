@@ -114,7 +114,7 @@ double AbsolutePoseCorrectingUprightEstimator::score_model(const CameraPose &pos
 }
 
 // TODO: maybe move to quaternion.h
-[[nodiscard]] static Eigen::Quaterniond extract_zx_rotations(const Eigen::Quaterniond &quaternion) {
+[[nodiscard]] Eigen::Quaterniond extract_zx_rotations(const Eigen::Quaterniond &quaternion) {
     Eigen::Vector3d angles =
         quaternion.normalized().toRotationMatrix().eulerAngles(2, 0, 1); // ZXY, because we have to extract y first
     double z = angles[0];
@@ -232,7 +232,7 @@ bool AbsolutePoseCorrectingUprightEstimator::refine_model(CameraPose *pose) {
 
         // Wrong world_to_camera_tilt prior, update it
         // TODO: maybe refine the best prior
-        CameraPose refined_model = best_modelb;
+        CameraPose refined_model = best_model;
         BundleOptions bundle_opt;
         bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
         bundle_opt.loss_scale = opt.max_reproj_error;
